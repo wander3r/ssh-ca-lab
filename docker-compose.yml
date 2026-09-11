@@ -1,0 +1,80 @@
+# SSH CA + IdP trial lab
+# Prefer: export DOCKER_HOST=tcp://127.0.0.1:2375
+# Bind mounts from this box often fail on remote Docker — configs are baked into images;
+# CA state lives in a named volume shared read-only with peers.
+
+services:
+  step-ca:
+    build: ./step-ca
+    image: ssh-ca-lab-step-ca:local
+    container_name: ssh-ca-lab-step-ca
+    environment:
+      DOCKER_STEPCA_INIT_NAME: "SSH Lab CA"
+      DOCKER_STEPCA_INIT_DNS_NAMES: "step-ca,localhost,127.0.0.1"
+      DOCKER_STEPCA_INIT_SSH: "true"
+      DOCKER_STEPCA_INIT_PASSWORD: "${DOCKER_STEPCA_INIT_PASSWORD}"
+      DOCKER_STEPCA_INIT_PROVISIONER_NAME: "admin"
+      DOCKER_STEPCA_INIT_ADDRESS: ":9000"
+    volumes:
+      - step-ca-data:/home/step
+    ports:
+      - "9000:9000"
+    networks:
+      - sshnet
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "step ca health -f 2>/dev/null || (test -f /home/step/certs/ssh_user_ca_key.pub && step certificate fingerprint /home/step/certs/root_ca.crt >/dev/null)",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 15s
+
+  ssh-target:
+    build: ./ssh-target
+    image: ssh-ca-lab-ssh-target:local
+    container_name: ssh-ca-lab-ssh-target
+    depends_on:
+      step-ca:
+        condition: service_started
+    environment:
+      CA_USER_PUBKEY: /home/step/certs/ssh_user_ca_key.pub
+    volumes:
+      - step-ca-data:/home/step:ro
+    ports:
+      - "2222:22"
+    networks:
+      - sshnet
+
+  idp-portal:
+    build: ./idp-portal
+    image: ssh-ca-lab-idp-portal:local
+    container_name: ssh-ca-lab-idp-portal
+    depends_on:
+      step-ca:
+        condition: service_started
+    environment:
+      STEP_CA_URL: https://step-ca:9000
+      ROOT_CA_PATH: /home/step/certs/root_ca.crt
+      PROVISIONER_NAME: admin
+      PROVISIONER_PASSWORD: "${PROVISIONER_PASSWORD}"
+      PORTAL_USER: "${PORTAL_USER:-demo}"
+      PORTAL_PASSWORD: "${PORTAL_PASSWORD:-demo}"
+      CERT_TTL: "1h"
+      SSH_PRINCIPALS: "demo"
+      SESSION_SECRET: "${SESSION_SECRET:-ssh-ca-lab-dev-session-secret}"
+    volumes:
+      - step-ca-data:/home/step:ro
+    ports:
+      - "8080:8080"
+    networks:
+      - sshnet
+
+volumes:
+  step-ca-data:
+
+networks:
+  sshnet:
+    driver: bridge

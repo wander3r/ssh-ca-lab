@@ -1,0 +1,8 @@
+.env
+credentials.txt
+demo-client/
+*.pem
+id_*
+!idp-portal/**
+!.env.example
+!credentials.example.txt
