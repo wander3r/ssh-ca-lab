@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SSH CA Lab — 登录</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 420px; margin: 4rem auto; padding: 0 1rem; }
+    .card { border: 1px solid #ddd; border-radius: 8px; padding: 1.5rem; }
+    label { display: block; margin-top: 0.75rem; font-size: 0.9rem; }
+    input { width: 100%; padding: 0.5rem; box-sizing: border-box; }
+    button { margin-top: 1rem; width: 100%; padding: 0.6rem; cursor: pointer; }
+    .err { color: #b00020; margin-top: 0.75rem; }
+    .hint { color: #666; font-size: 0.85rem; margin-top: 1rem; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>SSH CA Lab IdP</h1>
+    <p>试用门户：本地账号模拟 IdP，签发短时 SSH 用户证书。</p>
+    {% if error %}<div class="err">{{ error }}</div>{% endif %}
+    <form method="post" action="/login">
+      <label>用户名</label>
+      <input name="username" value="{{ portal_user_hint }}" autocomplete="username" required />
+      <label>密码</label>
+      <input name="password" type="password" autocomplete="current-password" required />
+      <button type="submit">登录</button>
+    </form>
+    <p class="hint">账号见 <code>credentials.txt</code>。生产环境应替换为 Keycloak / OIDC。</p>
+  </div>
+</body>
+</html>

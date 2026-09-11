@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>签发 SSH 证书</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 720px; margin: 2rem auto; padding: 0 1rem; }
+    .card { border: 1px solid #ddd; border-radius: 8px; padding: 1.5rem; margin-bottom: 1rem; }
+    textarea { width: 100%; min-height: 100px; font-family: ui-monospace, monospace; box-sizing: border-box; }
+    button { margin-top: 0.75rem; padding: 0.5rem 1rem; cursor: pointer; }
+    .err { color: #b00020; white-space: pre-wrap; }
+    pre { background: #f6f8fa; padding: 0.75rem; overflow: auto; font-size: 0.8rem; }
+    .meta { color: #555; font-size: 0.9rem; }
+    a { color: #06c; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>签发短时 SSH 用户证书</h1>
+    <p class="meta">已登录：<strong>{{ user }}</strong> · TTL={{ ttl }} · principals={{ principals }}
+      · <a href="/logout">退出</a></p>
+    <p>粘贴你的 <code>*.pub</code>（推荐 ed25519）。门户会用 step-ca JWK provisioner 签名，<strong>不会</strong>收集私钥。</p>
+    {% if error %}<div class="err">{{ error }}</div>{% endif %}
+    <form method="post" action="/issue" enctype="multipart/form-data">
+      <label>公钥文本</label>
+      <textarea name="pubkey" placeholder="ssh-ed25519 AAAA... comment"></textarea>
+      <label style="display:block;margin-top:0.75rem">或上传 .pub 文件</label>
+      <input type="file" name="pubkey_file" accept=".pub,text/plain" />
+      <div><button type="submit">签发证书</button></div>
+    </form>
+  </div>
+
+  {% if result %}
+  <div class="card">
+    <h2>证书已签发</h2>
+    <p><a href="{{ result.download }}">下载 id_lab-cert.pub</a></p>
+    <h3>ssh-keygen -L</h3>
+    <pre>{{ result.inspect }}</pre>
+    <h3>证书内容</h3>
+    <pre>{{ result.cert_text }}</pre>
+    <h3>客户端用法</h3>
+    <pre>ssh -i ~/.ssh/id_lab \
+  -o CertificateFile=~/.ssh/id_lab-cert.pub \
+  -o IdentitiesOnly=yes \
+  -p 2222 demo@127.0.0.1</pre>
+  </div>
+  {% endif %}
+</body>
+</html>
