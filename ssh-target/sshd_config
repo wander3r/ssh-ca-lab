@@ -1,0 +1,23 @@
+Port 22
+Protocol 2
+HostKey /etc/ssh/ssh_host_ed25519_key
+HostKey /etc/ssh/ssh_host_rsa_key
+
+# Trust SSH user certificates signed by the lab user CA
+TrustedUserCAKeys /ca-keys/ssh_user_ca_key.pub
+
+# Prove CA path: do NOT fall back to long-lived authorized_keys
+AuthorizedKeysFile none
+
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+ChallengeResponseAuthentication no
+PubkeyAuthentication yes
+AuthenticationMethods publickey
+PermitRootLogin no
+UsePAM no
+X11Forwarding no
+PrintMotd no
+AcceptEnv LANG LC_*
+Subsystem sftp /usr/lib/openssh/sftp-server
+PubkeyAcceptedAlgorithms +ssh-ed25519-cert-v01@openssh.com,ecdsa-sha2-nistp256-cert-v01@openssh.com,ssh-rsa-cert-v01@openssh.com
