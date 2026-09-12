@@ -5,7 +5,7 @@
 #   ./scripts/ssh-ca-login.sh
 #   ./scripts/ssh-ca-login.sh --ssh
 #
-# Local lab accounts (no browser):
+# Local accounts (demo overlay only):
 #   ./scripts/ssh-ca-login.sh --local sre
 #   ./scripts/ssh-ca-login.sh --local dev --ssh
 #
@@ -55,7 +55,7 @@ SSH_PORT=${SSH_PORT:-2222}
 mkdir -p "$(dirname "$KEY")"
 if [ ! -f "$KEY" ]; then
   echo "==> generating $KEY"
-  ssh-keygen -t ed25519 -N "" -f "$KEY" -C "lab@$(hostname -s 2>/dev/null || echo ssh-ca-lab)"
+  ssh-keygen -t ed25519 -N "" -f "$KEY" -C "sshca@$(hostname -s 2>/dev/null || echo sshca)"
 fi
 PUB="$KEY.pub"
 CERT="${KEY}-cert.pub"

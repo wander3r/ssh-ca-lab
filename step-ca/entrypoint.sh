@@ -28,7 +28,7 @@ if [ ! -f "${STEPPATH}/config/ca.json" ]; then
   echo "[step-ca] initializing PKI (ssh=${DOCKER_STEPCA_INIT_SSH:-false})"
   step ca init \
     --deployment-type standalone \
-    --name "${DOCKER_STEPCA_INIT_NAME:-SSH Lab CA}" \
+    --name "${DOCKER_STEPCA_INIT_NAME:-SSH CA}" \
     "${DNS_ARGS[@]}" \
     --address "${DOCKER_STEPCA_INIT_ADDRESS:-:9000}" \
     --provisioner "${DOCKER_STEPCA_INIT_PROVISIONER_NAME:-admin}" \

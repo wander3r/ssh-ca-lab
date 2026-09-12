@@ -1,8 +1,4 @@
-"""Minimal IdP simulation + SSH cert issuance portal (trial lab).
-
-Production would replace local username/password with real OIDC (Keycloak / Dex / Okta)
-and map IdP groups → SSH principals / Unix accounts.
-"""
+"""SSH CA identity portal: Feishu (or optional local login) → short-lived user certs."""
 
 from __future__ import annotations
 
@@ -30,13 +26,13 @@ from starlette.middleware.sessions import SessionMiddleware
 APP_DIR = Path(__file__).resolve().parent
 templates = Jinja2Templates(directory=str(APP_DIR / "templates"))
 
-PORTAL_USER = os.environ.get("PORTAL_USER", "demo")
-PORTAL_PASSWORD = os.environ.get("PORTAL_PASSWORD", "demo")
+PORTAL_USER = os.environ.get("PORTAL_USER", "").strip()
+PORTAL_PASSWORD = os.environ.get("PORTAL_PASSWORD", "")
 PROVISIONER = os.environ.get("PROVISIONER_NAME", "admin")
 PROVISIONER_PASSWORD = os.environ.get("PROVISIONER_PASSWORD", "")
 STEP_CA_URL = os.environ.get("STEP_CA_URL", "https://step-ca:9000")
 ROOT_CA_PATH = os.environ.get("ROOT_CA_PATH", "/home/step/certs/root_ca.crt")
-CERT_TTL = os.environ.get("CERT_TTL", "1h")
+CERT_TTL = os.environ.get("CERT_TTL", "8h")
 # Fallback principals only if a session has no role (should be rare).
 DEFAULT_PRINCIPALS = [
     p.strip()
@@ -60,7 +56,8 @@ FEISHU_USERINFO_URL = os.environ.get(
     "FEISHU_USERINFO_URL", "https://open.feishu.cn/open-apis/authen/v1/user_info"
 ).strip()
 FEISHU_SCOPES = os.environ.get(
-    "FEISHU_SCOPES", "contact:user.email:readonly contact:user.employee_id:readonly"
+    "FEISHU_SCOPES",
+    "contact:user.email:readonly contact:user.employee_id:readonly contact:contact.base:readonly",
 ).strip()
 PORTAL_PUBLIC_URL = os.environ.get("PORTAL_PUBLIC_URL", "http://127.0.0.1:8088").rstrip("/")
 CLIENT_TTL_SEC = int(os.environ.get("CLIENT_SESSION_TTL", "600"))
@@ -74,7 +71,7 @@ def _env_flag(name: str, default: bool) -> bool:
     return str(raw).strip().lower() in ("1", "true", "yes", "on")
 
 
-ALLOW_LOCAL_LOGIN = _env_flag("ALLOW_LOCAL_LOGIN", True)
+ALLOW_LOCAL_LOGIN = _env_flag("ALLOW_LOCAL_LOGIN", False)
 SESSION_HTTPS_ONLY = _env_flag("SESSION_HTTPS_ONLY", False)
 
 
@@ -225,7 +222,7 @@ def _ensure_role(request: Request) -> str | None:
         request,
         role,
         display_name=str(request.session.get("display_name") or user or role),
-        identity=str(request.session.get("cert_identity") or f"{user or role}@ssh-ca-lab"),
+        identity=str(request.session.get("cert_identity") or f"{user or role}@sshca"),
     )
     return role
 
@@ -237,11 +234,11 @@ def feishu_enabled() -> bool:
 def _ssh_hint_host(request: Request) -> str:
     return (os.environ.get("SSH_HINT_HOST") or request.url.hostname or "127.0.0.1").strip()
 
-app = FastAPI(title="SSH CA Lab IdP Portal")
+app = FastAPI(title="SSH CA")
 app.add_middleware(
     SessionMiddleware,
     secret_key=os.environ.get("SESSION_SECRET") or secrets.token_hex(32),
-    session_cookie="ssh_ca_lab_session",
+    session_cookie="sshca_session",
     same_site="lax",
     https_only=SESSION_HTTPS_ONLY,
 )
@@ -348,7 +345,7 @@ def _complete_client_session(session_id: str, request: Request) -> bool:
             sess["error"] = "department not allowed"
             CLIENT_STORE.put(session_id, sess)
             return False
-        identity = request.session.get("cert_identity") or f"{request.session.get('user')}@ssh-ca-lab"
+        identity = request.session.get("cert_identity") or f"{request.session.get('user')}@sshca"
         principals = _session_principals(request)
         cert_text, inspect_out = _sign_ssh_cert(sess["pubkey"], identity, principals)
         sess["status"] = "ready"
@@ -469,7 +466,7 @@ async def issue_cert(
         pubkey_line = _validate_pubkey(raw)
         principals = _session_principals(request)
         # identity / key-id shown in ssh-keygen -L
-        identity = request.session.get("cert_identity") or f"{user}@ssh-ca-lab"
+        identity = request.session.get("cert_identity") or f"{user}@sshca"
         cert_text, inspect_out = _sign_ssh_cert(pubkey_line, identity, principals)
 
         # stash cert in session-scoped temp for download
@@ -542,7 +539,7 @@ async def api_issue(
         principals = list(spec.get("principals") or [role])
         unix_user = spec.get("unix_user") or role
         cert_text, inspect_out = _sign_ssh_cert(
-            pubkey_line, f"{username}@ssh-ca-lab", principals
+            pubkey_line, f"{username}@sshca", principals
         )
         return {
             "ok": True,

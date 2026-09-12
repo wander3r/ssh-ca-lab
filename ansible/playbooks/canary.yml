@@ -1,0 +1,8 @@
+---
+- name: Trust SSH CA on canary hosts (keep authorized_keys)
+  hosts: ssh_canary
+  serial: 1
+  gather_facts: true
+  roles:
+    - ssh_ca_trust
+    - ssh_host_cert

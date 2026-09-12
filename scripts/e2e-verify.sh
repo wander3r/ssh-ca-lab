@@ -21,7 +21,7 @@ SRE_PASSWORD="${SRE_PASSWORD:-$(cred SRE_PASSWORD)}"
 SRE_PASSWORD="${SRE_PASSWORD:-sre}"
 
 KNOWN_HOSTS="$WORKDIR/known_hosts"
-if docker exec ssh-ca-lab-step-ca cat /home/step/certs/ssh_host_ca_key.pub >"$WORKDIR/host_ca.pub" 2>/dev/null; then
+if docker exec "${CA_CONTAINER:-sshca-step-ca}" cat /home/step/certs/ssh_host_ca_key.pub >"$WORKDIR/host_ca.pub" 2>/dev/null; then
   echo "@cert-authority * $(tr -d '\r\n' < "$WORKDIR/host_ca.pub")" > "$KNOWN_HOSTS"
   SSH_HOST_OPTS=(-o StrictHostKeyChecking=yes -o UserKnownHostsFile="$KNOWN_HOSTS")
   echo "==> using host CA in $KNOWN_HOSTS"
@@ -43,7 +43,7 @@ ssh_as() {
 }
 
 echo "==> generate ed25519 keypair"
-ssh-keygen -t ed25519 -N "" -f "$KEY" -C "e2e@ssh-ca-lab"
+ssh-keygen -t ed25519 -N "" -f "$KEY" -C "e2e@sshca"
 
 echo "==> issue sre cert (sudo)"
 ISSUE_USER=sre ISSUE_PASSWORD=sre \

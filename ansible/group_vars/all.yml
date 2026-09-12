@@ -1,0 +1,13 @@
+# Public CA material only. Copy from the control plane:
+#   ./scripts/export-ca-pubkeys.sh
+ssh_user_ca_pubkey_src: "{{ playbook_dir }}/../files/ssh_user_ca_key.pub"
+ssh_host_ca_pubkey_src: "{{ playbook_dir }}/../files/ssh_host_ca_key.pub"
+
+ssh_roles:
+  - name: sre
+    sudo: true
+  - name: dev
+    sudo: false
+
+# Canary keeps authorized_keys until certificate login is proven.
+ssh_keep_authorized_keys: false

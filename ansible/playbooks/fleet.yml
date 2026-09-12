@@ -1,0 +1,8 @@
+---
+- name: Trust SSH CA on the fleet
+  hosts: ssh_fleet
+  serial: "10%"
+  gather_facts: true
+  roles:
+    - ssh_ca_trust
+    - ssh_host_cert

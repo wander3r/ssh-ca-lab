@@ -10,3 +10,6 @@ vendor/
 step-ca/step
 step-ca/step-ca
 idp-portal/step
+ansible/files/*.pub
+ansible/files/host-certs/*.pub
+*.retry

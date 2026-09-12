@@ -1,0 +1,49 @@
+# Optional single SSH target for bring-up tests. Not for production hosts.
+#   docker compose -f docker-compose.yml -f docker-compose.demo.yml up -d
+#
+# Enables local portal accounts so scripts/e2e-verify.sh can run.
+
+services:
+  idp-portal:
+    environment:
+      ALLOW_LOCAL_LOGIN: "true"
+      PORTAL_USER: "${PORTAL_USER:-demo}"
+      PORTAL_PASSWORD: "${PORTAL_PASSWORD:-demo}"
+      CERT_TTL: "1h"
+      SSH_HINT_PORT: "2222"
+
+  ssh-target:
+    build:
+      context: .
+      dockerfile: ssh-target/Dockerfile
+    image: sshca-ssh-target:local
+    container_name: sshca-ssh-target
+    restart: unless-stopped
+    init: true
+    hostname: ssh-target
+    depends_on:
+      step-ca:
+        condition: service_healthy
+    environment:
+      CA_USER_PUBKEY: /home/step/certs/ssh_user_ca_key.pub
+      SRE_PASSWORD: "${SRE_PASSWORD:-sre}"
+      STEP_CA_URL: https://step-ca:9000
+      ROOT_CA_PATH: /home/step/certs/root_ca.crt
+      PROVISIONER_NAME: admin
+      PROVISIONER_PASSWORD: "${PROVISIONER_PASSWORD}"
+      SSH_HOST_IDENTITY: ssh-target
+      SSH_HOST_PRINCIPALS: "ssh-target,localhost,127.0.0.1,${SSH_HINT_HOST:-}"
+      HOST_CERT_TTL: "720h"
+    volumes:
+      - pki:/home/step:ro
+    ports:
+      - "2222:22"
+    networks:
+      - ca
+      - edge
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -x sshd >/dev/null"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 25s

@@ -1,0 +1,66 @@
+---
+- name: Install sudo
+  ansible.builtin.package:
+    name: sudo
+    state: present
+
+- name: Unix accounts for certificate principals
+  ansible.builtin.user:
+    name: "{{ item.name }}"
+    shell: /bin/bash
+    create_home: true
+    password: "*"
+    state: present
+  loop: "{{ ssh_roles }}"
+
+- name: Principals directory
+  ansible.builtin.file:
+    path: /etc/ssh/auth_principals
+    state: directory
+    mode: "0755"
+
+- name: Authorized principals match Unix username
+  ansible.builtin.copy:
+    dest: "/etc/ssh/auth_principals/{{ item.name }}"
+    content: "{{ item.name }}\n"
+    mode: "0644"
+  loop: "{{ ssh_roles }}"
+
+- name: Install SSH user CA public key
+  ansible.builtin.copy:
+    src: "{{ ssh_user_ca_pubkey_src }}"
+    dest: /etc/ssh/ssh_user_ca.pub
+    mode: "0644"
+  notify: Reload sshd
+
+- name: sshd certificate authentication
+  ansible.builtin.copy:
+    dest: /etc/ssh/sshd_config.d/50-ssh-ca.conf
+    mode: "0644"
+    content: |
+      TrustedUserCAKeys /etc/ssh/ssh_user_ca.pub
+      AuthorizedPrincipalsFile /etc/ssh/auth_principals/%u
+      PubkeyAuthentication yes
+      AuthenticationMethods publickey
+      PasswordAuthentication no
+      KbdInteractiveAuthentication no
+      PermitRootLogin no
+      {% if ssh_keep_authorized_keys | bool %}
+      # Keep existing keys until certificate login is verified.
+      {% else %}
+      AuthorizedKeysFile none
+      {% endif %}
+  notify: Reload sshd
+
+- name: Check sshd configuration
+  ansible.builtin.command: sshd -t
+  changed_when: false
+
+- name: sudo for sre (password required)
+  ansible.builtin.copy:
+    dest: /etc/sudoers.d/sre
+    content: "sre ALL=(ALL) ALL\n"
+    mode: "0440"
+    validate: visudo -cf %s
+  when: item.sudo | default(false) | bool
+  loop: "{{ ssh_roles }}"

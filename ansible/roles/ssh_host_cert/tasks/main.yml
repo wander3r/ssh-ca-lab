@@ -1,0 +1,35 @@
+---
+# Expect a host certificate already signed by the SSH host CA and placed at
+# ansible/files/host-certs/<inventory_hostname>-cert.pub
+# Sign on the CA (provisioner password stays off the fleet):
+#   step ssh certificate --host --sign <hostname> /etc/ssh/ssh_host_ed25519_key.pub
+- name: Install SSH host CA public key (for documentation / ssh-keygen -L)
+  ansible.builtin.copy:
+    src: "{{ ssh_host_ca_pubkey_src }}"
+    dest: /etc/ssh/ssh_host_ca.pub
+    mode: "0644"
+
+- name: Stat pre-signed host certificate
+  ansible.builtin.stat:
+    path: "{{ playbook_dir }}/../files/host-certs/{{ inventory_hostname }}-cert.pub"
+  register: host_cert
+  delegate_to: localhost
+  become: false
+
+- name: Install host certificate
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../files/host-certs/{{ inventory_hostname }}-cert.pub"
+    dest: /etc/ssh/ssh_host_ed25519_key-cert.pub
+    mode: "0644"
+  when: host_cert.stat.exists
+  notify: Reload sshd
+
+- name: Enable HostCertificate in sshd
+  ansible.builtin.copy:
+    dest: /etc/ssh/sshd_config.d/51-ssh-host-cert.conf
+    mode: "0644"
+    content: |
+      HostKey /etc/ssh/ssh_host_ed25519_key
+      HostCertificate /etc/ssh/ssh_host_ed25519_key-cert.pub
+  when: host_cert.stat.exists
+  notify: Reload sshd

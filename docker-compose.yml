@@ -1,8 +1,10 @@
-# Production-shaped lab stack.
-# Edge: Nginx proxy (HTTP 8088 / HTTPS 8443) + ssh-target :2222
-# Internal: step-ca + redis + portal (portal also on edge for Feishu egress)
-# Configs are baked into images; CA/redis state uses named volumes
-# (bind mounts often fail against a remote Docker daemon).
+# SSH CA control plane: CA + portal + Redis + TLS proxy.
+# Business hosts are NOT in this file — use ansible/ against the fleet.
+# Optional demo SSH box: docker compose -f docker-compose.yml -f docker-compose.demo.yml up -d
+#
+# Configs are baked into images; PKI lives in a named volume.
+
+name: sshca
 
 x-logging: &default-logging
   driver: json-file
@@ -13,22 +15,22 @@ x-logging: &default-logging
 services:
   step-ca:
     build: ./step-ca
-    image: ssh-ca-lab-step-ca:local
-    container_name: ssh-ca-lab-step-ca
+    image: sshca-step-ca:local
+    container_name: sshca-step-ca
     restart: unless-stopped
     init: true
     logging: *default-logging
     security_opt:
       - no-new-privileges:true
     environment:
-      DOCKER_STEPCA_INIT_NAME: "SSH Lab CA"
-      DOCKER_STEPCA_INIT_DNS_NAMES: "step-ca,localhost,127.0.0.1"
+      DOCKER_STEPCA_INIT_NAME: "${CA_NAME:-SSH CA}"
+      DOCKER_STEPCA_INIT_DNS_NAMES: "${CA_DNS_NAMES:-step-ca,localhost,127.0.0.1}"
       DOCKER_STEPCA_INIT_SSH: "true"
-      DOCKER_STEPCA_INIT_PASSWORD: "${DOCKER_STEPCA_INIT_PASSWORD}"
+      DOCKER_STEPCA_INIT_PASSWORD: "${DOCKER_STEPCA_INIT_PASSWORD:?set DOCKER_STEPCA_INIT_PASSWORD in .env}"
       DOCKER_STEPCA_INIT_PROVISIONER_NAME: "admin"
       DOCKER_STEPCA_INIT_ADDRESS: ":9000"
     volumes:
-      - step-ca-data:/home/step
+      - pki:/home/step
     ports:
       - "127.0.0.1:9000:9000"
     networks:
@@ -51,8 +53,8 @@ services:
 
   redis:
     build: ./redis
-    image: ssh-ca-lab-redis:local
-    container_name: ssh-ca-lab-redis
+    image: sshca-redis:local
+    container_name: sshca-redis
     restart: unless-stopped
     init: true
     logging: *default-logging
@@ -77,52 +79,10 @@ services:
           cpus: "0.50"
           memory: 64M
 
-  ssh-target:
-    build:
-      context: .
-      dockerfile: ssh-target/Dockerfile
-    image: ssh-ca-lab-ssh-target:local
-    container_name: ssh-ca-lab-ssh-target
-    restart: unless-stopped
-    init: true
-    logging: *default-logging
-    hostname: ssh-target
-    depends_on:
-      step-ca:
-        condition: service_healthy
-    environment:
-      CA_USER_PUBKEY: /home/step/certs/ssh_user_ca_key.pub
-      SRE_PASSWORD: "${SRE_PASSWORD:-sre}"
-      STEP_CA_URL: https://step-ca:9000
-      ROOT_CA_PATH: /home/step/certs/root_ca.crt
-      PROVISIONER_NAME: admin
-      PROVISIONER_PASSWORD: "${PROVISIONER_PASSWORD}"
-      SSH_HOST_IDENTITY: ssh-target
-      SSH_HOST_PRINCIPALS: "ssh-target,localhost,127.0.0.1,${SSH_HINT_HOST:-}"
-      HOST_CERT_TTL: "720h"
-    volumes:
-      - step-ca-data:/home/step:ro
-    ports:
-      - "2222:22"
-    networks:
-      - ca
-      - edge
-    healthcheck:
-      test: ["CMD-SHELL", "pgrep -x sshd >/dev/null"]
-      interval: 5s
-      timeout: 3s
-      retries: 20
-      start_period: 25s
-    deploy:
-      resources:
-        limits:
-          cpus: "0.50"
-          memory: 128M
-
   idp-portal:
     build: ./idp-portal
-    image: ssh-ca-lab-idp-portal:local
-    container_name: ssh-ca-lab-idp-portal
+    image: sshca-portal:local
+    container_name: sshca-portal
     restart: unless-stopped
     init: true
     logging: *default-logging
@@ -142,13 +102,13 @@ services:
       STEP_CA_URL: https://step-ca:9000
       ROOT_CA_PATH: /home/step/certs/root_ca.crt
       PROVISIONER_NAME: admin
-      PROVISIONER_PASSWORD: "${PROVISIONER_PASSWORD}"
-      PORTAL_USER: "${PORTAL_USER:-demo}"
-      PORTAL_PASSWORD: "${PORTAL_PASSWORD:-demo}"
-      CERT_TTL: "${CERT_TTL:-1h}"
+      PROVISIONER_PASSWORD: "${PROVISIONER_PASSWORD:?set PROVISIONER_PASSWORD in .env}"
+      PORTAL_USER: "${PORTAL_USER:-}"
+      PORTAL_PASSWORD: "${PORTAL_PASSWORD:-}"
+      CERT_TTL: "${CERT_TTL:-8h}"
       SESSION_SECRET: "${SESSION_SECRET:?set SESSION_SECRET in .env}"
       SESSION_HTTPS_ONLY: "${SESSION_HTTPS_ONLY:-false}"
-      ALLOW_LOCAL_LOGIN: "${ALLOW_LOCAL_LOGIN:-true}"
+      ALLOW_LOCAL_LOGIN: "${ALLOW_LOCAL_LOGIN:-false}"
       REDIS_URL: redis://redis:6379/0
       FEISHU_APP_ID: "${FEISHU_APP_ID:-}"
       FEISHU_APP_SECRET: "${FEISHU_APP_SECRET:-}"
@@ -156,12 +116,12 @@ services:
       FEISHU_AUTH_URL: "${FEISHU_AUTH_URL:-https://accounts.feishu.cn/open-apis/authen/v1/authorize}"
       FEISHU_TOKEN_URL: "${FEISHU_TOKEN_URL:-https://accounts.feishu.cn/oauth/v3/token}"
       FEISHU_USERINFO_URL: "${FEISHU_USERINFO_URL:-https://open.feishu.cn/open-apis/authen/v1/user_info}"
-      FEISHU_SCOPES: "${FEISHU_SCOPES:-contact:user.email:readonly contact:user.employee_id:readonly}"
+      FEISHU_SCOPES: "${FEISHU_SCOPES:-contact:user.email:readonly contact:user.employee_id:readonly contact:contact.base:readonly}"
       PORTAL_PUBLIC_URL: "${PORTAL_PUBLIC_URL:-http://127.0.0.1:8088}"
       SSH_HINT_HOST: "${SSH_HINT_HOST:-}"
-      SSH_HINT_PORT: "${SSH_HINT_PORT:-2222}"
+      SSH_HINT_PORT: "${SSH_HINT_PORT:-22}"
     volumes:
-      - step-ca-data:/home/step:ro
+      - pki:/home/step:ro
     networks:
       - ca
       - edge
@@ -185,8 +145,8 @@ services:
 
   proxy:
     build: ./proxy
-    image: ssh-ca-lab-proxy:local
-    container_name: ssh-ca-lab-proxy
+    image: sshca-proxy:local
+    container_name: sshca-proxy
     restart: unless-stopped
     init: true
     logging: *default-logging
@@ -213,12 +173,13 @@ services:
           memory: 128M
 
 volumes:
-  step-ca-data:
+  pki:
+    name: ${PKI_VOLUME:-sshca-pki}
   redis-data:
+    name: ${REDIS_VOLUME:-sshca-redis}
 
 networks:
   edge:
     driver: bridge
   ca:
     driver: bridge
-    internal: false

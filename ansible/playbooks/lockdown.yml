@@ -1,0 +1,9 @@
+---
+- name: Drop authorized_keys after certificate login is proven
+  hosts: ssh_hosts
+  serial: 1
+  gather_facts: true
+  vars:
+    ssh_keep_authorized_keys: false
+  roles:
+    - ssh_ca_trust
