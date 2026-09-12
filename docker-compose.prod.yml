@@ -1,0 +1,13 @@
+# Stricter overlay on top of docker-compose.yml.
+# Disables local portal accounts (Feishu only) and marks session cookies HTTPS.
+#
+#   docker compose --env-file .env -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# Point PORTAL_PUBLIC_URL / FEISHU_REDIRECT_URL at https://<host>:8443
+# (Nginx uses a self-signed cert; browsers will warn until you trust it).
+
+services:
+  idp-portal:
+    environment:
+      ALLOW_LOCAL_LOGIN: "false"
+      SESSION_HTTPS_ONLY: "true"

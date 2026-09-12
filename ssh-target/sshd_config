@@ -1,10 +1,11 @@
 Port 22
 Protocol 2
 HostKey /etc/ssh/ssh_host_ed25519_key
-HostKey /etc/ssh/ssh_host_rsa_key
+HostCertificate /etc/ssh/ssh_host_ed25519_key-cert.pub
 
 # Trust SSH user certificates signed by the lab user CA
 TrustedUserCAKeys /ca-keys/ssh_user_ca_key.pub
+AuthorizedPrincipalsFile /etc/ssh/auth_principals/%u
 
 # Prove CA path: do NOT fall back to long-lived authorized_keys
 AuthorizedKeysFile none

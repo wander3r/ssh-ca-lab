@@ -10,15 +10,22 @@
     label { display: block; margin-top: 0.75rem; font-size: 0.9rem; }
     input { width: 100%; padding: 0.5rem; box-sizing: border-box; }
     button { margin-top: 1rem; width: 100%; padding: 0.6rem; cursor: pointer; }
+    .feishu { background: #3370ff; color: #fff; border: 0; text-decoration: none; display: block; text-align: center; box-sizing: border-box; }
     .err { color: #b00020; margin-top: 0.75rem; }
     .hint { color: #666; font-size: 0.85rem; margin-top: 1rem; }
+    .or { text-align: center; color: #999; margin: 1rem 0 0; font-size: 0.85rem; }
   </style>
 </head>
 <body>
   <div class="card">
     <h1>SSH CA Lab IdP</h1>
-    <p>试用门户：本地账号模拟 IdP，签发短时 SSH 用户证书。</p>
+    <p>登录后签发短时 SSH 用户证书。</p>
     {% if error %}<div class="err">{{ error }}</div>{% endif %}
+    {% if feishu_enabled %}
+    <a class="feishu" href="/auth/feishu">飞书登录</a>
+    {% if allow_local_login %}<p class="or">或用本地试用账号</p>{% endif %}
+    {% endif %}
+    {% if allow_local_login %}
     <form method="post" action="/login">
       <label>用户名</label>
       <input name="username" value="{{ portal_user_hint }}" autocomplete="username" required />
@@ -26,7 +33,12 @@
       <input name="password" type="password" autocomplete="current-password" required />
       <button type="submit">登录</button>
     </form>
-    <p class="hint">账号见 <code>credentials.txt</code>。生产环境应替换为 Keycloak / OIDC。</p>
+    <p class="hint">本地可试 <code>sre</code>/<code>sre</code>（sudo 需目标机 Unix 密码）或 <code>dev</code>/<code>dev</code>（无 sudo）。{% if feishu_enabled %}飞书按部门映射到角色；对不上部门或白名单的账号会被拒绝。{% endif %}</p>
+    {% elif not feishu_enabled %}
+    <p class="err">未配置登录方式（需要飞书或 ALLOW_LOCAL_LOGIN）。</p>
+    {% else %}
+    <p class="hint">飞书按部门映射到角色；对不上部门或白名单的账号会被拒绝。</p>
+    {% endif %}
   </div>
 </body>
 </html>

@@ -1,0 +1,20 @@
+{
+  "unmapped_role": null,
+  "roles": {
+    "sre": {
+      "unix_user": "sre",
+      "principals": ["sre"],
+      "sudo": "all",
+      "departments": ["运维", "技术运维", "SRE", "基础设施", "IT"]
+    },
+    "dev": {
+      "unix_user": "dev",
+      "principals": ["dev"],
+      "sudo": false,
+      "departments": ["研发", "开发", "后端", "Engineering", "Dev"]
+    }
+  },
+  "users": {
+    "ou_0063209010309413042a9190a388575d": "sre"
+  }
+}

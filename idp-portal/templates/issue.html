@@ -18,7 +18,7 @@
 <body>
   <div class="card">
     <h1>签发短时 SSH 用户证书</h1>
-    <p class="meta">已登录：<strong>{{ user }}</strong> · TTL={{ ttl }} · principals={{ principals }}
+    <p class="meta">已登录：<strong>{{ user }}</strong>{% if display_name %}（{{ display_name }}）{% endif %} · TTL={{ ttl }} · principals={{ principals }}{% if sudo %} · sudo 需目标机 Unix 密码{% endif %}
       · <a href="/logout">退出</a></p>
     <p>粘贴你的 <code>*.pub</code>（推荐 ed25519）。门户会用 step-ca JWK provisioner 签名，<strong>不会</strong>收集私钥。</p>
     {% if error %}<div class="err">{{ error }}</div>{% endif %}
@@ -43,7 +43,7 @@
     <pre>ssh -i ~/.ssh/id_lab \
   -o CertificateFile=~/.ssh/id_lab-cert.pub \
   -o IdentitiesOnly=yes \
-  -p 2222 demo@127.0.0.1</pre>
+  -p {{ ssh_port }} {{ user }}@{{ ssh_host }}</pre>
   </div>
   {% endif %}
 </body>

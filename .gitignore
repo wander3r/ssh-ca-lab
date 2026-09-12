@@ -6,3 +6,7 @@ id_*
 !idp-portal/**
 !.env.example
 !credentials.example.txt
+vendor/
+step-ca/step
+step-ca/step-ca
+idp-portal/step

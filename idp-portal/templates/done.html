@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>已授权</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 420px; margin: 4rem auto; text-align: center; color: #222; }
+    p { color: #555; }
+  </style>
+</head>
+<body>
+  <h1>飞书认证完成</h1>
+  <p>证书已签发{% if user %}，将以 <code>{{ user }}</code> 登录{% endif %}{% if role %}（{{ role }}{% if sudo %} · sudo 需 Unix 密码{% endif %}）{% endif %}。</p>
+  <p>关掉这个窗口，回到终端即可连上。</p>
+</body>
+</html>
